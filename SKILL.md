@@ -142,6 +142,9 @@ Công cụ tìm và soát ảnh:
 1. `python $S/tim_anh_bing.py <work> tim "<từ khoá>" … --bo-qua <work video cũ cùng nhân vật> …`
    dựng bảng `_bing_*.jpg` có đánh số. Nhân vật châu Á thì tìm bằng tên gốc (张一鸣 演讲, 李嘉诚 采访…).
    Xem bảng, chọn số, rồi `… chon 1,10,13` ra `_chon.json`.
+   Bing gọi từ Python có ngày trả kết quả rác (cá lóc, tiền Hà Lan…). Khi đó tìm trong trình duyệt
+   của app rồi dựng bảng bằng `python $S/mk_sheet.py <work>`: cách làm ở mục "Tìm Bing trong trình
+   duyệt" của `references/chon-anh.md`.
 2. `python $S/tai_anh_web.py <work> <work>/_chon.json` tải ảnh gốc vào `<work>/web/`.
 3. `python $S/loc_trung_anh.py <work>/web <work video cũ> …` so aHash/md5 với ảnh đã dùng.
    **Nhân vật làm nhiều video thì không được lặp ảnh giữa các video**, kể cả ảnh cùng buổi chụp

@@ -68,3 +68,62 @@ Vì vậy:
 
 Ảnh CC BY / CC BY-SA bắt buộc ghi tác giả + giấy phép. Khi bàn giao, liệt kê trong báo cáo
 để người dùng dán vào phần mô tả bài đăng.
+
+## Tìm Bing trong trình duyệt (khi Python bị Bing chặn)
+
+Có những ngày Bing trả kết quả rác cho mọi từ khoá gọi từ Python (`tim_anh_bing.py` ra ảnh cá lóc, tiền
+Hà Lan, sơ đồ phanh). Trong trình duyệt của app (tab đang mở bing.com) thì `fetch` vẫn ra đúng, kể cả
+từ khoá chữ Nhật/Trung/Hàn.
+
+1. Mở tab `https://www.bing.com/images/search?q=<tên nhân vật>`. Mỗi lần điều hướng phải nạp lại hàm:
+   ```js
+   window.__g = async (q) => { const out=[]; for (const ep of ['async','search']) { for (const first of [0,35]) {
+     const r = await fetch(`https://www.bing.com/images/${ep}?q=`+encodeURIComponent(q)+`&first=${first}&count=35&qft=+filterui:imagesize-large&mmasync=1&form=IRFLTR`);
+     const d = new DOMParser().parseFromString(await r.text(),'text/html');
+     for (const a of d.querySelectorAll('a.iusc')) { try { const m=JSON.parse(a.getAttribute('m')); out.push([m.murl,m.purl,m.turl]); } catch(e){} } }
+     if (out.length) break; } return out; };
+   window.__ids = (rows)=>rows.map(r=>{const u=r[3]||''; const m=u.match(/[?&]id=([^&]+)/);
+     return (m?m[1]:u).replace(/^OIP\./,'')+'@'+(u.match(/\/\/(ts\d)\./)||['','ts1'])[1];}).join(' ');
+   window.__search = async (qs, skip=[]) => { const seen=new Set(skip); const rows=[];
+     for (const q of qs) for (const [m,p,t] of await window.__g(q)) if(!seen.has(m)){seen.add(m); rows.push([q,m,p,t]);}
+     return rows; };
+   window.__R = window.__R || {};
+   ```
+2. Tìm nhiều từ khoá theo đúng nội dung từng shot (vd "Warren Buffett Salomon 1991 testimony", "Henry Ford
+   Thomas Edison"), lọc bỏ kho ảnh có watermark, lưu vào `window.__R[<số bài>]`:
+   ```js
+   const bad=/getty|alamy|shutterstock|istock|dreamstime|depositphotos|123rf|ftcdn|ytimg|youtube|quote|meme|freepik|pngtree|cartoon|tiktok|bridgeman/i;
+   window.__R[22] = (await window.__search([...])).filter(r=>!bad.test(r[1]+r[2]));
+   window.__ids(window.__R[22])
+   ```
+3. Trình duyệt không gửi được dữ liệu về `127.0.0.1` (bị chặn mạng nội bộ). Chép chuỗi mã trả về vào
+   `<work>/_th_ids.txt`, rồi `python $S/mk_sheet.py <work>` dựng `_br_0.jpg`, `_br_1.jpg`… (64 ảnh/bảng,
+   có số vàng). Quá 250 mã thì nên bớt từ khoá, chép tay dài dễ sai.
+4. Xem bảng, chọn số, hỏi lại URL gốc chỉ cho các số đã chọn:
+   `JSON.stringify([3,17,40].map(i=>['k'+i, window.__R[22][i][1], window.__R[22][i][2]]))`.
+   Ghi `<work>/_chon.json` dạng `[key, url_anh, trang_nguon, ten_nguon]`, rồi chạy `tai_anh_web.py`
+   và `loc_trung_anh.py` như bình thường.
+
+## Bẫy đã gặp khi chọn ảnh (bộ 3, 11-2026)
+
+- **Nhận nhầm người.** Ảnh ghi "Carnegie at desk" trên Pinterest là Andrew Carnegie chứ không phải Dale.
+  Ảnh "Henry Ford" cười đội mũ trên alchetron là con trai ông, Edsel Ford. Ảnh "Buffett năm 1991" đứng
+  cạnh xe buýt hoá ra là người khác. Trước khi chốt, đọc `purl` và chú thích ảnh. Trang gallery của báo
+  (vd CNN "life in pictures") có chú thích từng ảnh, đọc được bằng Python.
+- **Ảnh AI.** Đường dẫn có `ai-images`, `contentshake`, chân dung "studio portrait of a distinguished…",
+  tranh minh hoạ, ảnh tô màu kiểu tranh: loại.
+- **Một ảnh gốc, nhiều bản cắt.** `loc_trung_anh.py` không bắt được bản cắt chặt từ cùng một ảnh
+  (Carnegie: ảnh hook và ảnh shot 9 là cùng một bức chân dung, chỉ khác khung). Soát bằng mắt ảnh hook so
+  với các shot, và so với ảnh video cũ cùng nhân vật.
+- **Ảnh cùng buổi chụp** (cùng áo, cùng ghế, cùng bức tường) đặt cạnh nhau trông như lặp. Mỗi buổi chụp
+  dùng tối đa một tấm, nếu dùng hai thì để cách xa nhau.
+- **Viền và huy hiệu.** Ảnh kho lưu trữ (Collections, The Henry Ford…) hay có viền đen và một huy hiệu đỏ
+  nhỏ ở góc trên trái. Cắt viền theo độ sáng trung bình từng hàng/cột, rồi dò điểm đỏ trong ô 200 px ở
+  góc để cắt tiếp. Chữ ghi nguồn dưới ảnh ("Seth Poppel Yearbook Library") thì cắt bỏ phần đó.
+- **Hook cụt đỉnh đầu.** Đặt `hook_face_y` 0,18–0,22 để thấy thêm phía trên. Ảnh gốc đã cắt sát đầu thì
+  không cứu được, đổi ảnh khác (ưu tiên ảnh dọc độ phân giải cao còn khoảng trống trên đầu).
+- **Ảnh theo đúng chuyện trong lời đọc.** Câu nói ra đời ở sự kiện nào thì tìm ảnh đúng sự kiện đó
+  (Buffett điều trần vụ Salomon 1991, Zuckerberg nhận bằng Harvard 2017, Munger cùng Buffett). Câu nhắc
+  vợ con, cha mẹ thì tìm ảnh gia đình thật của nhân vật. Câu chung chung vẫn dùng chân dung nhân vật.
+- **Trang chặn tải** (403/402 từ people.com, telegraph, Ford Media…): bỏ qua, tìm bản khác của cùng ảnh
+  trên trang khác. Không vượt chặn.
